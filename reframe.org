@@ -1,0 +1,116 @@
+* What is re-frame
+  It is a clojurescript framework for writing Single Page Applications (SPA's), using reagent.
+  It's a functional framework which is dealing with data and functions that transform the data.
+
+* About re-frame architecture
+  Re-frame implements a perpetual loop and re-frame looks after the conveyance of data around the loop, into and out of the transforming
+  functions you provide
+
+* 6-domino cascade
+  Each iteration of the loop involves a 6-domino cascade wherein one domino triggers the next which in turn triggers the next, etc
+  until we're back at the beginning of the loop.
+  The six dominos are;
+** Event dispatch
+** Event handling 
+** Effect handling
+** Query
+** View 
+** DOM
+
+* 1st Domino - Event Dispatch
+*** An event is sent when something happens - a user clicks a button or a websocket receives a message
+*** No 6-domino cascade occurs without the impulse of a triggering event
+*** For ex: Event triggered - clicking delete button of a SPA
+*** It is because of event S that a re-frame app is propelled
+#+begin_src clojure
+(defn delete-button 
+  [item-id]
+  [:div.garbage-bin 
+     :on-click #(re-frame.core/dispatch [:delete-item item-id])])  
+#+end_src
+
+#+RESULTS:
+: class clojure.lang.Compiler$CompilerExceptionclass clojure.lang.Compiler$CompilerExceptionCompilerException java.lang.ClassNotFoundException: re-frame.core, compiling:(/tmp/form-init2492278443606156723.clj:4:17) 
+
+* 2nd Domino - Event Handling
+*** In response to an event, an application must decide what action to take. This is known as event handling.
+*** Event handler functions describe a data structure which declares how the world should change because of the event
+*** (email database cookies localstore, etc)
+*** Event handler functions compute 'side effects' or 'effects'
+#+begin_src clojure
+(re-frame.core/reg-event-fx   ;; a part of the re-frame API
+  :delete-item                ;; the kind of event
+  h)                          ;; the handler function for this kind of event
+#+end_src
+
+#+RESULTS:
+: class java.lang.ClassNotFoundExceptionclass java.lang.ClassNotFoundExceptionClassNotFoundException re-frame.core  java.net.URLClassLoader.findClass (URLClassLoader.java:382)
+
+#+begin_src clojure
+(defn h                               ;; maybe choose a better name like `delete-item`
+ [coeffects event]                    ;; `coeffects` holds the current state of the world.  
+ (let [item-id (second event)         ;; extract id from event vector
+       db      (:db coeffects)]       ;; extract the current application state
+   {:db  (dissoc-in db [:items item-id])})) ;; effect is "change app state to ..."
+#+end_src
+
+#+RESULTS:
+: class clojure.lang.Compiler$CompilerExceptionclass clojure.lang.Compiler$CompilerExceptionCompilerException java.lang.RuntimeException: Unable to resolve symbol: dissoc-in in this context, compiling:(/tmp/form-init2492278443606156723.clj:5:10) 
+
+* 3rd Domino - Effect handling
+*** The descriptions of 'effects' are actioned
+*** Application state has been changed upon reaching Domino 3
+*** Changes in app state trigger the next part of the cascade involving dominoes 4-5-6
+**** 4-5-6 formula domino cascade implements the following formula known from Facebook's React library : v = f(s)
+     a view, v, is a function, f, of the app state, s
+*** An effect handler (function) actions the effects returned h
+*** h returns the following
+#+begin_src clojure
+{:db  (dissoc-in db [:items 2486])}   ;; db is a map of some structure
+#+end_src
+
+* 4th Domino - Query
+*** Extraction of data from the app state and provide it the right format for the view functions
+*** Runs query functions on the app state 's' to computed materialized views useful for functions of domino 5
+*** Here, the query function is trivial, items are stored in the app state, it acts strictly like an extractor
+
+#+begin_src clojure
+(defn query-fn
+  [db v]         ;; db is current app state, v the query vector
+  (:items db))   ;; not much of a materialised view
+#+end_src
+
+#+RESULTS:
+: #'user/query-fn
+
+#+begin_src clojure
+(re-frame.core/reg-sub  ;; part of the re-frame API
+   :query-items         ;; query id  
+   query-fn)            ;; query fn
+#+end_src
+
+#+RESULTS:
+: class java.lang.ClassNotFoundExceptionclass java.lang.ClassNotFoundExceptionClassNotFoundException re-frame.core  java.net.URLClassLoader.findClass (URLClassLoader.java:382)
+
+*** query-fn must be associated with a query-id, in this case, if in domino 5, you see a (subsribe [:query-items])
+*** then use 'query-fn' to compute it
+
+* 5th Domino - View
+*** Contains the view functions (Reagent components) that compute the UI DOM that should be displayed to the user
+*** The right application state needs to be sourced which is delivered reactively by the queries of domino 4
+*** Computes hiccup formatted data which is the description of the DOM
+
+#+begin_src clojure
+(defn items-view
+  []
+  (let [items  (subscribe [:query-items])]  ;; source items from app state
+    [:div (map item-render @items)]))   ;; assume item-render already written
+#+end_src
+
+#+RESULTS:
+: class clojure.lang.Compiler$CompilerExceptionclass clojure.lang.Compiler$CompilerExceptionCompilerException java.lang.RuntimeException: Unable to resolve symbol: subscribe in this context, compiling:(/tmp/form-init2492278443606156723.clj:3:16) 
+
+
+* 6th Domino
+*** Handled by Reagent/React
+*** The descriptions of the required DOM are made real
